@@ -8,46 +8,45 @@ PARKS={'LAND':'3cc919f1-d16d-43e0-8c3f-1dd269bd1a42','SEA':'67b290d5-3478-4f23-b
 cache={}
 JP_NAMES={'Enchanted Tale of Beauty and the Beast': '美女と野獣“魔法のものがたり”', "Baymax's Happy Ride": 'ベイマックスのハッピーライド', 'The Happy Ride with Baymax': 'ベイマックスのハッピーライド', "Pooh's Hunny Hunt": 'プーさんのハニーハント', 'Monsters, Inc. Ride & Go Seek!': 'モンスターズ・インク“ライド＆ゴーシーク！”', 'Space Mountain': 'スペース・マウンテン', 'Big Thunder Mountain': 'ビッグサンダー・マウンテン', 'Splash Mountain': 'スプラッシュ・マウンテン', 'Haunted Mansion': 'ホーンテッドマンション', 'Pirates of the Caribbean': 'カリブの海賊', 'Jungle Cruise: Wildlife Expeditions': 'ジャングルクルーズ：ワイルドライフ・エクスペディション', 'Western River Railroad': 'ウエスタンリバー鉄道', 'Mark Twain Riverboat': '蒸気船マークトウェイン号', 'Tom Sawyer Island Rafts': 'トムソーヤ島いかだ', 'Country Bear Theater': 'カントリーベア・シアター', "Peter Pan's Flight": 'ピーターパン空の旅', "Snow White's Adventures": '白雪姫と七人のこびと', "Pinocchio's Daring Journey": 'ピノキオの冒険旅行', 'Dumbo The Flying Elephant': '空飛ぶダンボ', 'Castle Carrousel': 'キャッスルカルーセル', "Alice's Tea Party": 'アリスのティーパーティー', "It's a Small World": 'イッツ・ア・スモールワールド', "Roger Rabbit's Car Toon Spin": 'ロジャーラビットのカートゥーンスピン', "Goofy's Paint 'n' Play House": 'グーフィーのペイント＆プレイハウス', "Chip 'n Dale's Treehouse": 'チップとデールのツリーハウス', "Donald's Boat": 'ドナルドのボート', "Minnie's House": 'ミニーの家', 'Star Tours: The Adventures Continue': 'スター・ツアーズ：ザ・アドベンチャーズ・コンティニュー', "Buzz Lightyear's Astro Blasters": 'バズ・ライトイヤーのアストロブラスター', 'Stitch Encounter': 'スティッチ・エンカウンター', 'Omnibus': 'オムニバス', 'Penny Arcade': 'ペニーアーケード', 'Soaring: Fantastic Flight': 'ソアリン：ファンタスティック・フライト', 'Journey to the Center of the Earth': 'センター・オブ・ジ・アース', '20,000 Leagues Under the Sea': '海底2万マイル', 'Tower of Terror': 'タワー・オブ・テラー', 'Toy Story Mania!': 'トイ・ストーリー・マニア！', 'Indiana Jones Adventure: Temple of the Crystal Skull': 'インディ・ジョーンズ・アドベンチャー：クリスタルスカルの魔宮', 'Raging Spirits': 'レイジングスピリッツ', "Anna and Elsa's Frozen Journey": 'アナとエルサのフローズンジャーニー', "Peter Pan's Never Land Adventure": 'ピーターパンのネバーランドアドベンチャー', "Fairy Tinker Bell's Busy Buggies": 'フェアリー・ティンカーベルのビジーバギー', "Rapunzel's Lantern Festival": 'ラプンツェルのランタンフェスティバル', 'Nemo & Friends SeaRider': 'ニモ＆フレンズ・シーライダー', 'Aquatopia': 'アクアトピア', 'DisneySea Electric Railway': 'ディズニーシー・エレクトリックレールウェイ', 'Venetian Gondolas': 'ヴェネツィアン・ゴンドラ', 'Fortress Explorations': 'フォートレス・エクスプロレーション', 'Caravan Carousel': 'キャラバンカルーセル', "Jasmine's Flying Carpets": 'ジャスミンのフライングカーペット', "Sinbad's Storybook Voyage": 'シンドバッド・ストーリーブック・ヴォヤッジ', "Flounder's Flying Fish Coaster": 'フランダーのフライングフィッシュコースター', "Scuttle's Scooters": 'スカットルのスクーター', "Jumpin' Jellyfish": 'ジャンピン・ジェリーフィッシュ', 'Blowfish Balloon Race': 'ブローフィッシュ・バルーンレース', 'The Whirlpool': 'ワールプール', "Ariel's Playground": 'アリエルのプレイグラウンド', 'DisneySea Transit Steamer Line': 'ディズニーシー・トランジットスチーマーライン', "Magellan's": 'マゼランズ', 'Ristorante di Canaletto': 'リストランテ・ディ・カナレット', 'Restaurant Sakura': 'レストラン櫻', 'S.S. Columbia Dining Room': 'S.S.コロンビア・ダイニングルーム', 'New York Deli': 'ニューヨーク・デリ', "Zambini Brothers' Ristorante": 'ザンビーニ・ブラザーズ・リストランテ', 'Cape Cod Cook-Off': 'ケープコッド・クックオフ', 'Casbah Food Court': 'カスバ・フードコート', "Sebastian's Calypso Kitchen": 'セバスチャンのカリプソキッチン', 'Vulcania Restaurant': 'ヴォルケイニア・レストラン', 'Queen of Hearts Banquet Hall': 'クイーン・オブ・ハートのバンケットホール', 'Crystal Palace Restaurant': 'クリスタルパレス・レストラン', 'Eastside Cafe': 'イーストサイド・カフェ', 'Center Street Coffeehouse': 'センターストリート・コーヒーハウス', 'Restaurant Hokusai': 'れすとらん北齋', 'Blue Bayou Restaurant': 'ブルーバイユー・レストラン', 'Polynesian Terrace Restaurant': 'ポリネシアンテラス・レストラン', 'Plaza Pavilion Restaurant': 'プラザパビリオン・レストラン', "Grandma Sara's Kitchen": 'グランマ・サラのキッチン', 'Hungry Bear Restaurant': 'ハングリーベア・レストラン', 'Camp Woodchuck Kitchen': 'キャンプ・ウッドチャック・キッチン', 'Tomorrowland Terrace': 'トゥモローランド・テラス', 'Pan Galactic Pizza Port': 'パン・ギャラクティック・ピザ・ポート', "Plazma Ray's Diner": 'プラズマ・レイズ・ダイナー'}
 
+JP_NAMES.update({
+    "Swiss Family Treehouse":"スイスファミリー・ツリーハウス",
+    "Enchanted Tiki Room: Stitch Presents Aloha E Komo Mai!":"魅惑のチキルーム：スティッチ・プレゼンツ“アロハ・エ・コモ・マイ！”",
+    "Enchanted Tiki Room":"魅惑のチキルーム：スティッチ・プレゼンツ“アロハ・エ・コモ・マイ！”",
+    "Beaver Brothers Explorer Canoes":"ビーバーブラザーズのカヌー探険",
+    "Cinderella's Fairy Tale Hall":"シンデレラのフェアリーテイル・ホール",
+    "Mickey's PhilharMagic":"ミッキーのフィルハーマジック",
+    "Gadget's Go Coaster":"ガジェットのゴーコースター",
+    "Toon Park":"トゥーンパーク",
+    "Donald's Boat":"ドナルドのボート",
+    "Chip 'n Dale's Treehouse":"チップとデールのツリーハウス",
+    "Goofy's Paint 'n' Play House":"グーフィーのペイント＆プレイハウス",
+    "Minnie's House":"ミニーの家",
+    "Mickey's House and Meet Mickey":"ミッキーの家とミート・ミッキー",
+    "The Enchanted Tiki Room":"魅惑のチキルーム：スティッチ・プレゼンツ“アロハ・エ・コモ・マイ！”"
+})
+
 def jp_name(name):
-    if not name:
-        return '名称不明'
-    if name in JP_NAMES:
-        return JP_NAMES[name]
-    # ThemeParks.wiki側の表記揺れ（’ / '、エリア名の括弧付き等）を吸収
-    normalized=name.replace('’', "'").strip()
-    if normalized in JP_NAMES:
-        return JP_NAMES[normalized]
-    aliases=[
-        ('Indiana Jones Adventure','インディ・ジョーンズ・アドベンチャー：クリスタルスカルの魔宮'),
-        ('Mermaid Lagoon Theater','マーメイドラグーンシアター'),
-        ('The Magic Lamp Theater','マジックランプシアター'),
-        ('Magic Lamp Theater','マジックランプシアター'),
-        ('Turtle Talk','タートル・トーク'),
-        ('Big City Vehicles','ビッグシティ・ヴィークル'),
-        ('Leonardo Challenge','フォートレス・エクスプロレーション“ザ・レオナルドチャレンジ”'),
-        ("Sindbad's Storybook Voyage",'シンドバッド・ストーリーブック・ヴォヤッジ'),
-        ('DisneySea Electric Railway','ディズニーシー・エレクトリックレールウェイ'),
-        ('DisneySea Transit Steamer Line','ディズニーシー・トランジットスチーマーライン'),
-        ('Turtle Talk','タートル・トーク'),
-        ('The Magic Lamp Theater','マジックランプシアター'),
-        ('Magic Lamp Theater','マジックランプシアター'),
-        ('Indiana Jones Adventure','インディ・ジョーンズ・アドベンチャー：クリスタルスカルの魔宮'),
-        ('Mermaid Lagoon Theater','マーメイドラグーンシアター'),
-        ('Turtle Talk','タートル・トーク'),
-    ]
-    for key,jp in aliases:
-        if key.lower() in normalized.lower():
-            # 路線系は取得元の括弧内エリアを残して識別しやすくする
-            if '(' in normalized and key.startswith('DisneySea'):
-                area=normalized[normalized.find('(')+1:normalized.rfind(')')]
-                areas={'American Waterfront':'アメリカンウォーターフロント','Port Discovery':'ポートディスカバリー',
-                       'Mediterranean Harbor':'メディテレーニアンハーバー','Lost River Delta':'ロストリバーデルタ'}
+    if not name: return '名称不明'
+    raw=name.replace('’', "'").replace('®','').replace('™','').strip()
+    # upstream often appends a land/route qualifier. Match the known canonical name first.
+    if raw in JP_NAMES: return JP_NAMES[raw]
+    for key in sorted(JP_NAMES,key=len,reverse=True):
+        if key.lower() in raw.lower():
+            jp=JP_NAMES[key]
+            if '(' in raw and key.startswith('DisneySea'):
+                area=raw[raw.find('(')+1:raw.rfind(')')]
+                areas={'American Waterfront':'アメリカンウォーターフロント','Port Discovery':'ポートディスカバリー','Mediterranean Harbor':'メディテレーニアンハーバー','Lost River Delta':'ロストリバーデルタ'}
                 return jp+'（'+areas.get(area,area)+'）'
             return jp
-    # 未登録の英語名をそのままUIへ漏らさない。名称マスター更新対象として表示。
-    if any('A' <= c <= 'Z' or 'a' <= c <= 'z' for c in normalized):
-        return '名称確認中'
-    return normalized
+    aliases=[
+      ('Indiana Jones Adventure','インディ・ジョーンズ・アドベンチャー：クリスタルスカルの魔宮'),
+      ('Leonardo Challenge','フォートレス・エクスプロレーション“ザ・レオナルドチャレンジ”'),
+      ('Magic Lamp Theater','マジックランプシアター'),('Mermaid Lagoon Theater','マーメイドラグーンシアター'),
+      ('Turtle Talk','タートル・トーク'),('Sindbad','シンドバッド・ストーリーブック・ヴォヤッジ')]
+    for key,jp in aliases:
+        if key.lower() in raw.lower(): return jp
+    # QA will expose the original name; production UI never leaks raw English.
+    return '名称確認中' if re.search(r'[A-Za-z]',raw) else raw
 
 CATALOG=[
  {'kind':'スーベニア','name':'スーベニアカップ','price':'+900円','parks':'ランド / シー','period':'2026/9/15〜10/31','menu':'パンプキンムース＆チョコプリン','shops':['スウィートハート・カフェ','ハングリーベア・レストラン','ヒューイ・デューイ・ルーイのグッドタイム・カフェ'],'source':'https://www.tokyodisneyresort.jp/food/4895/'},
@@ -114,7 +113,11 @@ def detail(url,fallback=''):
 
 def crawl_restaurant_menus(park):
     code='tdl' if park=='LAND' else 'tds'
-    menu_pages=set()
+    known={
+      'LAND':[303,306,321,339,352,357,362],
+      'SEA':[408,412,418,422,432,435,451,464]
+    }
+    menu_pages={f'{TDR}/{code}/restaurant/food/{i}/' for i in known.get(park,[])}
     for root in (f'{TDR}/{code}/restaurant/',f'{TDR}/{code}/restaurant/list/'):
         try:
             s=page(root)
@@ -132,21 +135,30 @@ def crawl_restaurant_menus(park):
                 if re.search(r'/food/\d+/?$',u) and u!=mp:
                     t=clean_text(a.get_text(' ',strip=True))
                     if t: found[u]=t
-            if found:
-                for u,t in found.items():
-                    n,p,img,d=detail(u,t.split('¥')[0].strip())
+            # 1) individual detail links (image-rich items)
+            linked_names=set()
+            for u,t in found.items():
+                n,p,img,d=detail(u,t.split('¥')[0].strip())
+                if n:
+                    linked_names.add(n)
                     save_catalog(dict(url=u,kind='menu',park=park,name=n,price=p or yen(t),
                         place=restaurant,category='メニュー',image=img,detail=d,updated=int(time.time())))
-            else:
-                # HTML構造が変わっても、価格付きの可視メニュー行は保存する。
-                for line in s.get_text('\n',strip=True).splitlines():
-                    t=clean_text(line); p=yen(t)
-                    if p and len(t)>3:
-                        n=t.split('¥')[0].strip()
-                        if n:
-                            u=mp+'#'+str(abs(hash((restaurant,n))))
-                            save_catalog(dict(url=u,kind='menu',park=park,name=n,price=p,
-                                place=restaurant,category='メニュー',image='',detail='',updated=int(time.time())))
+            # 2) every visible price-bearing line. This is essential for regular menu items
+            # such as drinks, sides and standard mains which often have no detail-page link.
+            current_cat='メニュー'
+            for line in s.get_text('\n',strip=True).splitlines():
+                t=clean_text(line)
+                if not t: continue
+                if len(t)<32 and not yen(t) and any(k in t for k in ('おすすめ','メイン','サイド','デザート','スウィーツ','スナック','ソフトドリンク','アルコール','お子様','パン/ライス','アントレ','お食事','トッピング')):
+                    current_cat=t.replace('#','').strip(); continue
+                p=yen(t)
+                if not p or len(t)>240: continue
+                # Strip status/price tail but keep concrete menu name.
+                n=re.split(r'\s+(?:COMING SOON|NEW|単品|セット|プラス|1個|1本|1杯)?\s*(?:¥|￥)',t,maxsplit=1)[0].strip(' ・|')
+                if not n or n in linked_names or n.startswith('販売期間'): continue
+                u=mp+'#item-'+str(abs(hash((restaurant,n))))
+                save_catalog(dict(url=u,kind='menu',park=park,name=n,price=p,
+                    place=restaurant,category=current_cat,image='',detail=t,updated=int(time.time())))
         except Exception: pass
 
 def crawl_goods(park):
@@ -198,7 +210,7 @@ def live(park:str):
         src=d if isinstance(d,list) else d.get('liveData',d.get('data',[])); out=[]
         for x in src:
             q=x.get('queue') or {}; s=q.get('STANDBY') or q.get('standby') or {}
-            out.append({'id':x.get('id'),'name':jp_name(x.get('name','名称不明')),'type':x.get('entityType','ATTRACTION'),'status':x.get('status','UNKNOWN'),'wait':s.get('waitTime'),'updated':x.get('lastUpdated')})
+            out.append({'id':x.get('id'),'name':jp_name(x.get('name','名称不明')),'raw_name':x.get('name',''),'type':x.get('entityType','ATTRACTION'),'status':x.get('status','UNKNOWN'),'wait':s.get('waitTime'),'updated':x.get('lastUpdated')})
         return {'ok':True,'items':out}
     except Exception as e:return {'ok':False,'items':[],'error':str(e)}
 HTML="""<!doctype html><html lang=ja><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1,viewport-fit=cover'><title>Park LIVE</title><style>
@@ -236,6 +248,26 @@ def start_refresh():
     if not refresh_state['running']:
         threading.Thread(target=refresh_catalog,daemon=True).start()
     return {'ok':True,'refresh':refresh_state}
+
+@app.get('/api/qa')
+def qa():
+    # Five independent review lenses: localization, menu coverage, data quality, UI/search, resilience.
+    report={'localization':{},'menu_coverage':{},'data_quality':{},'ui_search':{},'resilience':{}}
+    unknown=[]
+    for park in ('LAND','SEA'):
+        try:
+            d=live(park); unknown += [x.get('raw_name') for x in d.get('items',[]) if x.get('name')=='名称確認中']
+        except Exception as e: report['resilience'][park]=str(e)
+    c=db(); rows=[dict(x) for x in c.execute('select * from local_catalog').fetchall()]; c.close()
+    menus=[x for x in rows if x['kind']=='menu']; goods=[x for x in rows if x['kind']=='goods']
+    souvenir_words=('スーベニア','ミニスナックケース')
+    regular=[x for x in menus if not any(w in (x['name'] or '') for w in souvenir_words)]
+    report['localization']={'unknown_english_count':len(unknown),'unknown_raw_names':unknown}
+    report['menu_coverage']={'all_menu_items':len(menus),'regular_non_souvenir_items':len(regular),'restaurants':len(set(x['place'] for x in menus if x['place']))}
+    report['data_quality']={'goods':len(goods),'menu_with_images':sum(bool(x['image']) for x in menus),'goods_with_images':sum(bool(x['image']) for x in goods)}
+    report['ui_search']={'search_fields':['name','place','detail'],'reverse_lookup':True}
+    report['resilience'].update({'refresh_running':refresh_state['running'],'last_refresh':refresh_state['last']})
+    return {'ok':True,'reviews':report}
 
 @app.get('/',response_class=HTMLResponse)
 def home():return HTML
