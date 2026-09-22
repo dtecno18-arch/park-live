@@ -1,0 +1,9 @@
+Park LIVE v11
+interactive_map: PASS
+osm_attribution: PASS
+tap_location_api: PASS
+no_fake_shop_pins: PASS
+verified_park_centers: PASS
+dpa_api: PASS
+compile: PASS
+Next: verified facility coordinates + card click wiring + image coverage expansion.

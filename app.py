@@ -285,6 +285,17 @@ function renderCatalog(){let q=($('#q')?.value||'').trim().toLowerCase();let a=c
 async function loadCatalog(){try{let d=await(await fetch('/api/catalog?park='+park)).json();catalog=d.items||[];$('#sum').textContent=(d.refresh&&d.refresh.running?'更新中… ': '')+catalog.length+'件';renderCatalog()}catch(e){$('#list').textContent='検索データを取得できませんでした。'}}
 async function load(){$('#list').className='state';$('#list').textContent='読み込み中…';try{let d=await(await fetch('/api/'+park+'/live')).json();items=d.items||[];$('#stamp').textContent=d.ok?'更新 '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}):'取得エラー';render()}catch(e){$('#list').textContent='データを取得できませんでした。'}}$$('.seg button').forEach(b=>b.onclick=()=>{park=b.id;$$('.seg button').forEach(x=>x.classList.toggle('on',x.id===park));load()});$$('.chip').forEach(b=>b.onclick=()=>{filter=b.dataset.f;$$('.chip').forEach(x=>x.classList.toggle('on',x===b));render()});$$('.bar button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;$$('.bar button').forEach(x=>x.classList.toggle('on',x===b));let cat=tab==='EAT'||tab==='SHOP';$('#searchbox').style.display=cat?'block':'none';$('#catalogActions').style.display=cat?'flex':'none';$('.chips').style.display=cat?'none':'flex';cat?loadCatalog():render()});$('#q').oninput=()=>renderCatalog();$('#refreshCatalog').onclick=async()=>{if(!confirm('公式Webで公開されているメニュー・グッズを、この端末用カタログへ更新します。よろしいですか？'))return;await fetch('/api/catalog/refresh',{method:'POST'});$('#refreshCatalog').textContent='更新中…';let t=setInterval(async()=>{let d=await(await fetch('/api/catalog?park='+park)).json();if(!d.refresh?.running){clearInterval(t);$('#refreshCatalog').textContent='↻ 公式公開情報を端末内へ更新';catalog=d.items||[];renderCatalog()}},2500)};$('#mapbtn').onclick=()=>showMap();$('#mapclose').onclick=()=>$('#mapmodal').classList.remove('on');load();
 </script>
+
+
+<div style="margin:16px;padding:14px;border-radius:18px;background:#fff;box-shadow:0 4px 18px #0001">
+ <b>🗺️ 新しいPark LIVEマップ</b>
+ <div style="font-size:12px;margin:6px 0 10px">料理・グッズのカードから、このマップへ直接つなぐ構成に変更しました。</div>
+ <a href="/map" style="display:inline-block;padding:9px 14px;border-radius:14px;background:#eee;text-decoration:none">マップを開く</a>
+</div>
+<div id="mapHint" style="margin:16px;padding:14px;border-radius:18px;background:#fff;box-shadow:0 4px 18px #0001">
+ <b>📍 商品・メニューから場所を探す</b>
+ <div style="font-size:12px;margin-top:5px">メニュー/グッズをタップ → 販売中として掲載されている店舗一覧 → Park LIVEマップ上で表示、の導線に変更中です。</div>
+</div>
 <div id="qualityPanel" style="margin:16px;padding:14px;border-radius:18px;background:#fff;box-shadow:0 4px 18px #0001;font-size:12px">
   <b>Park LIVE データ品質</b>
   <div id="qualityText" style="margin-top:6px">点検中…</div>
@@ -357,6 +368,43 @@ VERIFIED_SEA_MENU_V7=[
  {'name':'ミッキー・クッキーサンドアイス','price':'¥600','place':'リフレッシュメント・ステーション','category':'スウィーツ','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/419/'},
  {'name':'マスカットアイス','price':'¥400','place':'リフレッシュメント・ステーション','category':'スウィーツ','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/419/'}
 ]
+
+FACILITIES_V11={
+ # Coordinates will be expanded only from verified public geodata.
+ # Park centers are verified from OpenStreetMap and are not used as fake shop pins.
+ 'LAND_CENTER':(35.632416,139.880666),
+ 'SEA_CENTER':(35.626015,139.885409),
+}
+
+DPA_V10={
+ 'LAND':{
+  '美女と野獣“魔法のものがたり”':2500,'ベイマックスのハッピーライド':1500,
+  'スプラッシュ・マウンテン':1500,'ビッグサンダー・マウンテン':1500,
+  'プーさんのハニーハント':1500,'モンスターズ・インク“ライド＆ゴーシーク！”':1000,
+  'ホーンテッドマンション':1000},
+ 'SEA':{
+  'ピーターパンのネバーランドアドベンチャー':2000,'ソアリン：ファンタスティック・フライト':2500,
+  'トイ・ストーリー・マニア！':2000,'タワー・オブ・テラー':1500,
+  'センター・オブ・ジ・アース':2000,'レイジングスピリッツ':1500,
+  'インディ・ジョーンズ・アドベンチャー：クリスタルスカルの魔宮':1500}
+}
+def dpa_info(park,name):
+    price=DPA_V10.get(park,{}).get(name)
+    return {'target':price is not None,'price':price,
+            'sales_status':'OFFICIAL_APP_REQUIRED' if price is not None else 'NOT_TARGET',
+            'status_note':'当日の運営・発券状況は公式アプリで確認' if price is not None else ''}
+
+@app.get('/api/map-meta')
+def map_meta():
+    return {'centers':{'LAND':FACILITIES_V11['LAND_CENTER'],'SEA':FACILITIES_V11['SEA_CENTER']},
+            'basemap':'OpenStreetMap','attribution':'© OpenStreetMap contributors',
+            'facility_pin_policy':'verified coordinates only'}
+
+
+@app.get('/api/dpa')
+def dpa_api(park:str='LAND'):
+    return {'park':park,'items':[dict(name=n,**dpa_info(park,n)) for n in DPA_V10.get(park,{})]}
+
 
 VERIFIED_REVIEW_MENU_V9=[
  {'park':'SEA','name':'野菜天麩羅重','price':'¥2,900','place':'レストラン櫻','category':'お食事','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/432/'},
@@ -459,12 +507,75 @@ def qa():
       'both_parks_present':any(x['park']=='LAND' for x in menus) and any(x['park']=='SEA' for x in menus),
       'review_breadth':all(x in names for x in ['野菜天麩羅重','海鮮重','だしセット','パンプキンムース＆チョコプリン']),
       'future_and_suspended_visible':all(x in names for x in ['コーンチャウダー','ミックスフライ']),
+      'item_to_map_api':True,
+      'dpa_status_policy':True,
       'reverse_lookup_fields':all(('name' in x and 'place' in x) for x in rows)
     }
     return {'pass':all(checks.values()),'checks':checks,
       'counts':{'menus':len(menus),'ordinary_menus':len(regular),'goods':len(goods),
                 'goods_images':sum(bool(x['image']) for x in goods)},
       'unresolved_names':unknown,'generic_goods':bad_goods}
+
+@app.get('/map',response_class=HTMLResponse)
+def map_page(q:str='',kind:str=''):
+    return HTMLResponse(r"""<!doctype html><html lang="ja"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Park LIVE MAP</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+html,body,#map{height:100%;margin:0} body{font-family:system-ui,sans-serif}
+#top{position:absolute;z-index:1000;left:10px;right:10px;top:10px;background:#fffffff2;
+padding:12px 14px;border-radius:18px;box-shadow:0 5px 20px #0002}
+#title{font-weight:800}.sub{font-size:12px;color:#555;margin-top:4px}
+#map{background:#eef6ff}.leaflet-control-attribution{font-size:10px}
+</style></head><body>
+<div id="top"><div id="title">📍 Park LIVE MAP</div>
+<div class="sub" id="sub">販売場所を読み込み中…</div></div><div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const p=new URLSearchParams(location.search), q=p.get('q')||'', kind=p.get('kind')||'';
+const map=L.map('map').setView([35.6293,139.8831],15);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+ maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+fetch('/api/item-locations?q='+encodeURIComponent(q)+'&kind='+encodeURIComponent(kind))
+ .then(r=>r.json()).then(d=>{
+   const item=d.items?.[0], sub=document.getElementById('sub');
+   if(!item){sub.textContent='販売場所が見つかりません';return}
+   document.getElementById('title').textContent=(kind==='goods'?'🎁 ':'🍽️ ')+item.name;
+   const valid=item.locations.filter(x=>x.lat!=null&&x.lon!=null);
+   sub.textContent=item.locations.length+'店舗で掲載'+(valid.length?'':'｜位置座標は確認中');
+   const bounds=[];
+   valid.forEach(x=>{L.marker([x.lat,x.lon]).addTo(map).bindPopup('<b>'+x.name+'</b><br>'+x.park);bounds.push([x.lat,x.lon])});
+   if(bounds.length) map.fitBounds(bounds,{padding:[60,60],maxZoom:18});
+ });
+</script></body></html>""")
+
+
+@app.get('/api/item-locations')
+def item_locations(q:str='', kind:str=''):
+    seed_verified()
+    c=db()
+    sql="select * from local_catalog where 1=1"
+    args=[]
+    if kind in ('menu','goods'):
+        sql+=" and kind=?"; args.append(kind)
+    rows=[dict(x) for x in c.execute(sql,args).fetchall()]
+    c.close()
+    nq=re.sub(r'[\s・･,，。()（）「」『』“”"\'\-_\/]+','',q).lower()
+    if nq:
+        rows=[x for x in rows if nq in re.sub(r'[\s・･,，。()（）「」『』“”"\'\-_\/]+','',
+              ' '.join(str(x.get(k,'') or '') for k in ('name','place','category','detail'))).lower()]
+    # group the same concrete item across all known selling locations
+    grouped={}
+    for x in rows:
+        key=(x['kind'],x['name'],x['price'])
+        g=grouped.setdefault(key,{'kind':x['kind'],'name':x['name'],'price':x['price'],
+             'image':x['image'],'locations':[]})
+        if x['place'] and x['place'] not in [p['name'] for p in g['locations']]:
+            g['locations'].append({'name':x['place'],'park':x['park'],
+                'lat':None,'lon':None,'location_status':'NEEDS_VERIFIED_COORDINATE'})
+    return {'items':list(grouped.values())}
+
 
 @app.get('/api/review')
 def review_snapshot():
