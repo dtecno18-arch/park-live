@@ -21,6 +21,9 @@ def jp_name(name):
         ("Sindbad's Storybook Voyage",'シンドバッド・ストーリーブック・ヴォヤッジ'),
         ('DisneySea Electric Railway','ディズニーシー・エレクトリックレールウェイ'),
         ('DisneySea Transit Steamer Line','ディズニーシー・トランジットスチーマーライン'),
+        ('Turtle Talk','タートル・トーク'),
+        ('The Magic Lamp Theater','マジックランプシアター'),
+        ('Magic Lamp Theater','マジックランプシアター'),
     ]
     for key,jp in aliases:
         if key.lower() in normalized.lower():
