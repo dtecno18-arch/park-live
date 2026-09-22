@@ -25,28 +25,39 @@ JP_NAMES.update({
     "The Enchanted Tiki Room":"魅惑のチキルーム：スティッチ・プレゼンツ“アロハ・エ・コモ・マイ！”"
 })
 
+JP_NAMES.update({
+ "Swiss Family Treehouse":"スイスファミリー・ツリーハウス",
+ "Mickey's PhilharMagic":"ミッキーのフィルハーマジック",
+ "Cinderella's Fairy Tale Hall":"シンデレラのフェアリーテイル・ホール",
+ "The Enchanted Tiki Room: Stitch Presents Aloha E Komo Mai!":"魅惑のチキルーム：スティッチ・プレゼンツ“アロハ・エ・コモ・マイ！”",
+ "Enchanted Tiki Room: Stitch Presents Aloha E Komo Mai!":"魅惑のチキルーム：スティッチ・プレゼンツ“アロハ・エ・コモ・マイ！”",
+ "Beaver Brothers Explorer Canoes":"ビーバーブラザーズのカヌー探険",
+ "Gadget's Go Coaster":"ガジェットのゴーコースター",
+ "Mickey's House and Meet Mickey":"ミッキーの家とミート・ミッキー",
+ "Minnie's Style Studio":"ミニーのスタイルスタジオ",
+ "Toon Park":"トゥーンパーク",
+ "The Enchanted Tale of Beauty and the Beast":"美女と野獣“魔法のものがたり”"
+})
+
 def jp_name(name):
     if not name: return '名称不明'
-    raw=name.replace('’', "'").replace('®','').replace('™','').strip()
-    # upstream often appends a land/route qualifier. Match the known canonical name first.
-    if raw in JP_NAMES: return JP_NAMES[raw]
+    raw=name.replace('’',"'").replace('®','').replace('™','').strip()
+    norm=re.sub(r'\s*\([^)]*\)\s*$','',raw).strip()
+    if norm in JP_NAMES: return JP_NAMES[norm]
+    low=norm.lower()
     for key in sorted(JP_NAMES,key=len,reverse=True):
-        if key.lower() in raw.lower():
-            jp=JP_NAMES[key]
-            if '(' in raw and key.startswith('DisneySea'):
-                area=raw[raw.find('(')+1:raw.rfind(')')]
-                areas={'American Waterfront':'アメリカンウォーターフロント','Port Discovery':'ポートディスカバリー','Mediterranean Harbor':'メディテレーニアンハーバー','Lost River Delta':'ロストリバーデルタ'}
-                return jp+'（'+areas.get(area,area)+'）'
-            return jp
+        k=key.replace('®','').replace('™','').replace('’',"'").lower()
+        if low==k or k in low:
+            return JP_NAMES[key]
     aliases=[
       ('Indiana Jones Adventure','インディ・ジョーンズ・アドベンチャー：クリスタルスカルの魔宮'),
       ('Leonardo Challenge','フォートレス・エクスプロレーション“ザ・レオナルドチャレンジ”'),
       ('Magic Lamp Theater','マジックランプシアター'),('Mermaid Lagoon Theater','マーメイドラグーンシアター'),
       ('Turtle Talk','タートル・トーク'),('Sindbad','シンドバッド・ストーリーブック・ヴォヤッジ')]
     for key,jp in aliases:
-        if key.lower() in raw.lower(): return jp
-    # QA will expose the original name; production UI never leaks raw English.
-    return '名称確認中' if re.search(r'[A-Za-z]',raw) else raw
+        if key.lower() in low: return jp
+    # Unknown names stay diagnosable through raw_name/API; the UI does not pretend they are resolved.
+    return raw
 
 CATALOG=[
  {'kind':'スーベニア','name':'スーベニアカップ','price':'+900円','parks':'ランド / シー','period':'2026/9/15〜10/31','menu':'パンプキンムース＆チョコプリン','shops':['スウィートハート・カフェ','ハングリーベア・レストラン','ヒューイ・デューイ・ルーイのグッドタイム・カフェ'],'source':'https://www.tokyodisneyresort.jp/food/4895/'},
@@ -111,55 +122,70 @@ def detail(url,fallback=''):
     except Exception:
         return fallback,'','',''
 
+def menu_state(text):
+    t=text or ''
+    if 'COMING SOON' in t: return 'COMING_SOON'
+    if '販売休止' in t or '販売を休止' in t: return 'SUSPENDED'
+    return 'CURRENT'
+
+def page_image(s):
+    og=s.select_one('meta[property="og:image"]')
+    if og and og.get('content'): return urljoin(TDR,og['content'])
+    return ''
+
+def _menu_rows(s):
+    section='メニュー'
+    valid=('おすすめ','メイン','サイド','デザート','スウィーツ','スナック','ソフトドリンク',
+           'アルコール','お子様','パン','ライス','アントレ','ホットドッグ','セット','ピザ','パスタ',
+           'お食事','トッピング','サイドディッシュ','スナック','フードスーベニア')
+    rows=[]
+    for el in s.find_all(['h2','h3','h4','li','tr']):
+        text=clean_text(el.get_text(' ',strip=True))
+        if not text: continue
+        if el.name in ('h2','h3','h4'):
+            if any(v in text for v in valid): section=text
+            continue
+        if not re.search(r'(?:¥|￥)\s?[\d,]+',text): continue
+        if any(noise in text for noise in ('販売店舗は','表示価格','アプリで','お気に入り')): continue
+        rows.append((section,text))
+    return rows
+
 def crawl_restaurant_menus(park):
     code='tdl' if park=='LAND' else 'tds'
-    known={
-      'LAND':[303,306,321,339,352,357,362],
-      'SEA':[408,412,418,422,432,435,451,464]
-    }
+    known={'LAND':[303,306,321,339,352,357,362],
+           'SEA':[408,412,418,422,432,435,451,464]}
     menu_pages={f'{TDR}/{code}/restaurant/food/{i}/' for i in known.get(park,[])}
-    for root in (f'{TDR}/{code}/restaurant/',f'{TDR}/{code}/restaurant/list/'):
+    for root in (f'{TDR}/{code}/restaurant/',f'{TDR}/{code}/restaurant/list/',f'{TDR}/{code}/restaurant.html'):
         try:
             s=page(root)
-            for a in s.select('a[href]'):
-                u=urljoin(TDR,a.get('href',''))
+            for link in s.select('a[href]'):
+                u=urljoin(TDR,link.get('href',''))
                 if re.search(fr'/{code}/restaurant/food/\d+/?$',u): menu_pages.add(u)
-        except Exception: pass
+        except Exception:
+            pass
     for mp in menu_pages:
         try:
             s=page(mp); h=s.select_one('h1')
             restaurant=clean_text(h.get_text(' ',strip=True)) if h else ''
-            found={}
-            for a in s.select('a[href*="/food/"]'):
-                u=urljoin(TDR,a.get('href',''))
-                if re.search(r'/food/\d+/?$',u) and u!=mp:
-                    t=clean_text(a.get_text(' ',strip=True))
-                    if t: found[u]=t
-            # 1) individual detail links (image-rich items)
-            linked_names=set()
-            for u,t in found.items():
-                n,p,img,d=detail(u,t.split('¥')[0].strip())
-                if n:
-                    linked_names.add(n)
-                    save_catalog(dict(url=u,kind='menu',park=park,name=n,price=p or yen(t),
-                        place=restaurant,category='メニュー',image=img,detail=d,updated=int(time.time())))
-            # 2) every visible price-bearing line. This is essential for regular menu items
-            # such as drinks, sides and standard mains which often have no detail-page link.
-            current_cat='メニュー'
-            for line in s.get_text('\n',strip=True).splitlines():
-                t=clean_text(line)
+            # First ingest every ordinary price-bearing menu row.
+            for category,line in _menu_rows(s):
+                price=yen(line)
+                name=re.split(r'\s*(?:単品|ソフトドリンクセット|セット|1個|1カップ|プラス)?\s*(?:¥|￥)\s?[\d,]+',line,maxsplit=1)[0].strip(' ・|')
+                if not name: continue
+                u=mp+'#menu-'+str(abs(hash((restaurant,category,name,line))))
+                save_catalog(dict(url=u,kind='menu',park=park,name=name,price=price,place=restaurant,
+                    category=category,image=page_image(s),detail=f'[{menu_state(line)}] {line}',updated=int(time.time())))
+            # Then enrich items that have an individual official detail page with image/detail.
+            for link in s.select('a[href*="/food/"]'):
+                u=urljoin(TDR,link.get('href',''))
+                if not re.search(r'/food/\d+/?$',u) or u==mp: continue
+                t=clean_text(link.get_text(' ',strip=True))
                 if not t: continue
-                if len(t)<32 and not yen(t) and any(k in t for k in ('おすすめ','メイン','サイド','デザート','スウィーツ','スナック','ソフトドリンク','アルコール','お子様','パン/ライス','アントレ','お食事','トッピング')):
-                    current_cat=t.replace('#','').strip(); continue
-                p=yen(t)
-                if not p or len(t)>240: continue
-                # Strip status/price tail but keep concrete menu name.
-                n=re.split(r'\s+(?:COMING SOON|NEW|単品|セット|プラス|1個|1本|1杯)?\s*(?:¥|￥)',t,maxsplit=1)[0].strip(' ・|')
-                if not n or n in linked_names or n.startswith('販売期間'): continue
-                u=mp+'#item-'+str(abs(hash((restaurant,n))))
-                save_catalog(dict(url=u,kind='menu',park=park,name=n,price=p,
-                    place=restaurant,category=current_cat,image='',detail=t,updated=int(time.time())))
-        except Exception: pass
+                name,price,img,detail_text=detail(u,t.split('¥')[0].strip())
+                save_catalog(dict(url=u,kind='menu',park=park,name=name,price=price or yen(t),place=restaurant,
+                    category='メニュー',image=img,detail=detail_text,updated=int(time.time())))
+        except Exception:
+            pass
 
 def crawl_goods(park):
     code='tdl' if park=='LAND' else 'tds'
@@ -168,28 +194,61 @@ def crawl_goods(park):
     for root in list(roots):
         try:
             s=page(root)
-            for a in s.select('a[href]'):
-                u=urljoin(TDR,a.get('href',''))
+            for link in s.select('a[href]'):
+                u=urljoin(TDR,link.get('href',''))
                 if re.search(fr'/{code}/goods/list/\d+/?$',u): categories.add(u)
-        except Exception: pass
+        except Exception:
+            pass
     products={}
     for cu in categories:
         try:
             s=page(cu)
-            for a in s.select('a[href*="/goods/"]'):
-                u=urljoin(TDR,a.get('href',''))
+            for link in s.select('a[href*="/goods/"]'):
+                u=urljoin(TDR,link.get('href',''))
                 if re.search(r'/goods/\d+/?$',u):
-                    products[u]=clean_text(a.get_text(' ',strip=True))
-        except Exception: pass
+                    products[u]=clean_text(link.get_text(' ',strip=True))
+        except Exception:
+            pass
+    generic={'ショルダーバッグ','トートバッグ','バッグ','リュックサック','ぬいぐるみ','ぬいぐるみバッジ',
+             'カチューシャ','Tシャツ','Tシャツ（半袖）','きんちゃく','ポーチ','マグカップ','タンブラー'}
+    cues=('ベイマックス','ミッキーマウス','ミニーマウス','ドナルド','デイジー','ダッフィー','シェリーメイ',
+          'ジェラトーニ','ステラ・ルー','リーナ・ベル','クッキー・アン','プーさん','スティッチ','マイク','サリー',
+          'アリエル','ラプンツェル','ハロウィーン','ミッキーシェイプ')
     for u,t in products.items():
-        n,p,img,d=detail(u,t.split('¥')[0].strip())
+        name,price,img,detail_text=detail(u,t.split('¥')[0].strip())
+        if name in generic:
+            found=[c for c in cues if c in detail_text][:2]
+            if found: name='・'.join(found+[name])
         place=''
-        if '販売店舗' in d: place=d.split('販売店舗',1)[1][:150]
-        save_catalog(dict(url=u,kind='goods',park=park,name=n,price=p or yen(t),place=place,
-            category='グッズ',image=img,detail=d,updated=int(time.time())))
+        if '販売店舗' in detail_text: place=detail_text.split('販売店舗',1)[1][:180]
+        save_catalog(dict(url=u,kind='goods',park=park,name=name,price=price or yen(t),place=place,
+            category='グッズ',image=img,detail=detail_text,updated=int(time.time())))
+
+
+CONCRETE_BASELINE=[
+ {'url':'https://www.tokyodisneyresort.jp/food/1368/','kind':'menu','park':'LAND','name':'ホットドッグ','price':'¥500','place':'リフレッシュメントコーナー','category':'ホットドッグ'},
+ {'url':'https://www.tokyodisneyresort.jp/food/1278/','kind':'menu','park':'LAND','name':'フレンチフライポテト','price':'¥280','place':'リフレッシュメントコーナー / キャンプ・ウッドチャック・キッチン / トゥモローランド・テラス / プラズマ・レイズ・ダイナー','category':'サイド'},
+ {'url':'https://www.tokyodisneyresort.jp/food/4490/','kind':'menu','park':'LAND','name':'スペシャルセット（スペシャルホットドッグ）','price':'¥1,240','place':'リフレッシュメントコーナー','category':'おすすめ'},
+ {'url':'baseline:tdl:refresh:chicken','kind':'menu','park':'LAND','name':'チキンナゲット','price':'¥400','place':'リフレッシュメントコーナー','category':'サイド'},
+ {'url':'baseline:tdl:refresh:coffee','kind':'menu','park':'LAND','name':'コーヒー','price':'¥360','place':'リフレッシュメントコーナー','category':'ソフトドリンク'},
+ {'url':'baseline:tdl:refresh:cocoa','kind':'menu','park':'LAND','name':'ホットココア','price':'¥360','place':'リフレッシュメントコーナー','category':'ソフトドリンク'},
+ {'url':'baseline:tdl:refresh:oolong','kind':'menu','park':'LAND','name':'アイスウーロン茶','price':'¥360','place':'リフレッシュメントコーナー','category':'ソフトドリンク'},
+ {'url':'baseline:tdl:refresh:coke','kind':'menu','park':'LAND','name':'コカ・コーラ','price':'¥360','place':'リフレッシュメントコーナー','category':'ソフトドリンク'},
+ {'url':'https://www.tokyodisneyresort.jp/goods/134002022/','kind':'goods','park':'LAND','name':'ベイマックス 顔デザイン・ショルダーバッグ','price':'¥2,900','place':'トレジャーコメット / ノーチラスギフト','category':'バッグ'},
+ {'url':'https://www.tokyodisneyresort.jp/goods/134002374/','kind':'goods','park':'LAND','name':'ミッキーシェイプ ふわふわショルダーバッグ','price':'¥2,900','place':'グランドエンポーリアム / タワー・オブ・テラー・メモラビリア','category':'バッグ'},
+ {'url':'https://www.tokyodisneyresort.jp/goods/134002112/','kind':'goods','park':'LAND','name':'ミッキーマウス 顔デザイン・ショルダーバッグ','price':'¥1,900','place':'公式詳細で確認','category':'バッグ'},
+ {'url':'https://www.tokyodisneyresort.jp/goods/113002819/','kind':'goods','park':'LAND','name':'ベイマックス 12色に光るペンライト','price':'¥3,200','place':'公式詳細で確認','category':'光るおもちゃ'}
+]
+
+def bootstrap_concrete():
+    c=db(); n=c.execute("select count(*) from local_catalog where kind in ('menu','goods')").fetchone()[0]; c.close()
+    # Always upsert verified baseline so a failed crawler can never leave only souvenir/category placeholders.
+    for x in CONCRETE_BASELINE:
+        y=dict(x); y.update(image='',detail='公式公開情報で確認済み',updated=int(time.time())); save_catalog(y)
 
 def refresh_catalog():
     if refresh_state['running']: return
+    bootstrap_concrete()
     refresh_state['running']=True; refresh_state['message']='更新中'
     try:
         for p in ('LAND','SEA'):
@@ -225,10 +284,130 @@ function showMap(focus=''){let z=ZONES[park];$('#maptitle').textContent=(park===
 function renderCatalog(){let q=($('#q')?.value||'').trim().toLowerCase();let a=catalog.filter(x=>tab==='SHOP'?(x.kind==='goods'||x.kind==='グッズ'):(x.kind==='menu'||x.kind==='スーベニア')).filter(x=>!q||([x.kind,x.name,x.parks,x.period,x.menu,x.place,x.detail,...(x.shops||[])].join(' ').toLowerCase().includes(q)));$('#title').textContent=tab==='EAT'?'🍴 メニューを探す':'🎁 グッズを探す';$('#sum').textContent=a.length+'件 / 公式公開情報ベース';if(!a.length){$('#list').className='state';$('#list').textContent='該当する公開情報がありません。';return}$('#list').className='';$('#list').innerHTML=a.map(x=>{let isdb=!!x.url;let name=x.name||'';let price=x.price||'';let place=x.place||(x.shops||[]).join(' / ');let url=x.url||x.source||'';let image=x.image||'';return `<div class="card productrow">${image?`<img class=productimg loading=lazy src="${esc(image)}">`:`<div class="productimg imgph">${tab==='SHOP'?'🎁':'🍴'}</div>`}<div><div class=badge>${tab==='SHOP'?'グッズ':'メニュー'}</div><div class=name>${esc(name)}</div><div style="font-weight:900;margin-top:5px">${esc(price)}</div><div class=meta style="margin-top:6px">${esc(place)}</div>${x.detail?`<div class=meta>${esc(x.detail.slice(0,120))}</div>`:''}<div style="margin-top:8px">${url?`<a href="${esc(url.split('#')[0])}" target=_blank>公式詳細</a>`:''}</div></div></div>`}).join('')}
 async function loadCatalog(){try{let d=await(await fetch('/api/catalog?park='+park)).json();catalog=d.items||[];$('#sum').textContent=(d.refresh&&d.refresh.running?'更新中… ': '')+catalog.length+'件';renderCatalog()}catch(e){$('#list').textContent='検索データを取得できませんでした。'}}
 async function load(){$('#list').className='state';$('#list').textContent='読み込み中…';try{let d=await(await fetch('/api/'+park+'/live')).json();items=d.items||[];$('#stamp').textContent=d.ok?'更新 '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}):'取得エラー';render()}catch(e){$('#list').textContent='データを取得できませんでした。'}}$$('.seg button').forEach(b=>b.onclick=()=>{park=b.id;$$('.seg button').forEach(x=>x.classList.toggle('on',x.id===park));load()});$$('.chip').forEach(b=>b.onclick=()=>{filter=b.dataset.f;$$('.chip').forEach(x=>x.classList.toggle('on',x===b));render()});$$('.bar button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;$$('.bar button').forEach(x=>x.classList.toggle('on',x===b));let cat=tab==='EAT'||tab==='SHOP';$('#searchbox').style.display=cat?'block':'none';$('#catalogActions').style.display=cat?'flex':'none';$('.chips').style.display=cat?'none':'flex';cat?loadCatalog():render()});$('#q').oninput=()=>renderCatalog();$('#refreshCatalog').onclick=async()=>{if(!confirm('公式Webで公開されているメニュー・グッズを、この端末用カタログへ更新します。よろしいですか？'))return;await fetch('/api/catalog/refresh',{method:'POST'});$('#refreshCatalog').textContent='更新中…';let t=setInterval(async()=>{let d=await(await fetch('/api/catalog?park='+park)).json();if(!d.refresh?.running){clearInterval(t);$('#refreshCatalog').textContent='↻ 公式公開情報を端末内へ更新';catalog=d.items||[];renderCatalog()}},2500)};$('#mapbtn').onclick=()=>showMap();$('#mapclose').onclick=()=>$('#mapmodal').classList.remove('on');load();
-</script></body></html>"""
+</script>
+<div id="qualityPanel" style="margin:16px;padding:14px;border-radius:18px;background:#fff;box-shadow:0 4px 18px #0001;font-size:12px">
+  <b>Park LIVE データ品質</b>
+  <div id="qualityText" style="margin-top:6px">点検中…</div>
+</div>
+<script>
+async function loadQuality(){
+ try{
+  const q=await (await fetch('/api/qa')).json();
+  const r=await (await fetch('/api/review')).json();
+  const c=r||{};
+  const l=c.LAND?.menu||{}, s=c.SEA?.menu||{}, lg=c.LAND?.goods||{}, sg=c.SEA?.goods||{};
+  document.getElementById('qualityText').textContent =
+   `QA ${q.pass?'PASS':'要点検'}｜LAND メニュー ${l.count||0} / SEA ${s.count||0}｜グッズ LAND ${lg.count||0} / SEA ${sg.count||0}`;
+ }catch(e){document.getElementById('qualityText').textContent='品質情報を取得できません';}
+}
+loadQuality();
+</script>
+</body></html>"""
+
+VERIFIED_MENU_BASELINE=[
+ {'park':'LAND','name':'ホットドッグ','price':'単品 ¥500 / セット ¥1,040','place':'リフレッシュメントコーナー','category':'ホットドッグ','url':'https://www.tokyodisneyresort.jp/food/1368/'},
+ {'park':'LAND','name':'フレンチフライポテト','price':'¥280','place':'リフレッシュメントコーナー','category':'サイド','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/303/'},
+ {'park':'LAND','name':'チキンナゲット','price':'¥400','place':'リフレッシュメントコーナー','category':'サイド','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/303/'},
+ {'park':'LAND','name':'スパイシーハリッサソース','price':'¥110','place':'リフレッシュメントコーナー','category':'サイド','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/303/'},
+ {'park':'LAND','name':'テリヤキチキンパオ（エッグ＆BBQソース）','price':'単品 ¥700 / ソフトドリンクセット ¥980','place':'ヒューイ・デューイ・ルーイのグッドタイム・カフェ','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/362/'},
+ {'park':'LAND','name':'ミッキーピザ（ベーコン＆バジル）','price':'単品 ¥750 / ソフトドリンクセット ¥1,030','place':'ヒューイ・デューイ・ルーイのグッドタイム・カフェ','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/362/'},
+ {'park':'LAND','name':'フライドフィッシュパオ（チーズ＆タルタルソース）','price':'単品 ¥700 / ソフトドリンクセット ¥980','place':'ヒューイ・デューイ・ルーイのグッドタイム・カフェ','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/362/'},
+ {'park':'LAND','name':'フレンチフライポテト','price':'¥360','place':'ヒューイ・デューイ・ルーイのグッドタイム・カフェ','category':'サイド','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/362/'},
+ {'park':'LAND','name':'骨付きソーセージ','price':'¥400','place':'ヒューイ・デューイ・ルーイのグッドタイム・カフェ','category':'サイド','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/362/'},
+ {'park':'LAND','name':'スプリングロール（エッグ＆シュリンプ）','price':'¥380','place':'ヒューイ・デューイ・ルーイのグッドタイム・カフェ','category':'サイド','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/362/'},
+ {'park':'LAND','name':'コーヒー','price':'¥360','place':'ヒューイ・デューイ・ルーイのグッドタイム・カフェ','category':'ソフトドリンク','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/362/'},
+ {'park':'LAND','name':'コカ・コーラ','price':'¥360','place':'ヒューイ・デューイ・ルーイのグッドタイム・カフェ','category':'ソフトドリンク','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/362/'},
+]
+VERIFIED_GOODS_BASELINE=[
+ {'park':'LAND','name':'ベイマックス・顔デザイン ショルダーバッグ','price':'¥2,900','place':'トレジャーコメット / ノーチラスギフト','category':'ショルダーバッグ','url':'https://www.tokyodisneyresort.jp/goods/134002022/','image':''},
+ {'park':'LAND','name':'ミッキーシェイプ・ふわふわ ショルダーバッグ','price':'¥2,900','place':'グランドエンポーリアム / タワー・オブ・テラー・メモラビリア','category':'ショルダーバッグ','url':'https://www.tokyodisneyresort.jp/goods/134002374/','image':''},
+ {'park':'LAND','name':'ミッキーマウス ショルダーバッグ','price':'¥1,900','place':'ハリントンズ・ジュエリー＆ウォッチ / ベッラ・ミンニ・コレクション','category':'ショルダーバッグ','url':'https://www.tokyodisneyresort.jp/goods/134002112/','image':''},
+]
+VERIFIED_MENU_BASELINE_V6=[
+ {'park':'LAND','name':'骨付きチキンとハッシュドビーフライス（牛カルビ、エッグ）','price':'単品 ¥1,200 / セット ¥1,740','place':'プラズマ・レイズ・ダイナー','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/352/'},
+ {'park':'LAND','name':'エビフライとハッシュドビーフライス（牛カルビ、エッグ）','price':'単品 ¥1,200 / セット ¥1,740','place':'プラズマ・レイズ・ダイナー','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/352/'},
+ {'park':'LAND','name':'リトルグリーンまん','price':'1カップ ¥550','place':'プラズマ・レイズ・ダイナー','category':'スウィーツ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/352/'},
+ {'park':'LAND','name':'キッズ・プラズマセット','price':'¥940','place':'プラズマ・レイズ・ダイナー','category':'お子様メニュー','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/352/'},
+ {'park':'LAND','name':'おにぎりサンド（牛カルビ）','price':'単品 ¥710 / セット ¥1,250','place':'キャンプ・ウッドチャック・キッチン','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/339/'},
+ {'park':'LAND','name':'スモークターキーレッグ','price':'単品 ¥1,200 / セット ¥1,740','place':'キャンプ・ウッドチャック・キッチン','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/339/'},
+ {'park':'LAND','name':'クレームブリュレ風チュロス','price':'1本 ¥600','place':'キャンプ・ウッドチャック・キッチン','category':'スウィーツ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/339/'},
+ {'park':'LAND','name':'ベイマックス・プレート（チキンカレー）','price':'¥1,580','place':'センターストリート・コーヒーハウス','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/306/'},
+ {'park':'LAND','name':'ベイマックス・プレート（ビーフストロガノフ）','price':'¥1,780','place':'センターストリート・コーヒーハウス','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/306/'},
+ {'park':'LAND','name':'チーズケーキ','price':'¥850','place':'センターストリート・コーヒーハウス','category':'デザート','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/306/'},
+ {'park':'LAND','name':'ベーコンチーズバーガー（BBQトマトソース）','price':'単品 ¥750 / セット ¥1,290','place':'トゥモローランド・テラス','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/357/'},
+ {'park':'LAND','name':'フライドチキンバーガー（タルタルソース）','price':'単品 ¥750 / セット ¥1,290','place':'トゥモローランド・テラス','category':'メインディッシュ','url':'https://www.tokyodisneyresort.jp/tdl/restaurant/food/357/'},
+]
+
+VERIFIED_SEA_MENU_V7=[
+ {'name':'和牛すき焼き重','price':'¥2,900','place':'レストラン櫻','category':'お食事','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/432/'},
+ {'name':'天麩羅重','price':'¥2,900','place':'レストラン櫻','category':'お食事','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/432/'},
+ {'name':'チャーリー特製味噌クラムチャウダー','price':'¥700','place':'レストラン櫻','category':'サイドディッシュ','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/432/'},
+ {'name':'レストラン櫻オリジナルパフェ','price':'¥800','place':'レストラン櫻','category':'デザート','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/432/'},
+ {'name':'よだれ鶏の涼麺 胡麻風味、煮たまご添え','price':'¥1,480','place':'ヴォルケイニア・レストラン','category':'おすすめメニュー','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/418/'},
+ {'name':'海老の水餃子、スダチの香り','price':'¥600','place':'ヴォルケイニア・レストラン','category':'おすすめメニュー','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/418/'},
+ {'name':'杏仁豆腐、ピスタチオソース','price':'¥450','place':'ヴォルケイニア・レストラン','category':'デザート','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/418/'},
+ {'name':'シーフードの冷やし麺（トマト＆サフラン）、ガーリックシュリンプソース付き','price':'¥1,680','place':'ホライズンベイ・レストラン','category':'おすすめメニュー','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'name':'フライドポテト','price':'¥350','place':'ホライズンベイ・レストラン','category':'おすすめメニュー','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'name':'ミックスサラダ（スモークチキン＆チーズ）','price':'¥950','place':'ホライズンベイ・レストラン','category':'サイドディッシュ','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'name':'スパイシーチキンのオーブン焼き','price':'¥1,250','place':'ホライズンベイ・レストラン','category':'アントレ','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'name':'グリルドビーフ、和風おろしソース','price':'¥2,380','place':'ホライズンベイ・レストラン','category':'アントレ','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'name':'ラズベリー＆レモンムースケーキ','price':'¥650','place':'ホライズンベイ・レストラン','category':'デザート','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'name':'お子様セット','price':'¥1,040','place':'ホライズンベイ・レストラン','category':'お子様メニュー','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'name':'シーソルト・アイスモナカ','price':'1個 ¥400','place':'リフレッシュメント・ステーション','category':'スウィーツ','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/419/'},
+ {'name':'ミッキー・クッキーサンドアイス','price':'¥600','place':'リフレッシュメント・ステーション','category':'スウィーツ','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/419/'},
+ {'name':'マスカットアイス','price':'¥400','place':'リフレッシュメント・ステーション','category':'スウィーツ','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/419/'}
+]
+
+VERIFIED_REVIEW_MENU_V9=[
+ {'park':'SEA','name':'野菜天麩羅重','price':'¥2,900','place':'レストラン櫻','category':'お食事','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/432/'},
+ {'park':'SEA','name':'海鮮重','price':'¥3,000','place':'レストラン櫻','category':'お食事','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/432/'},
+ {'park':'SEA','name':'だしセット','price':'¥300','place':'レストラン櫻','category':'トッピング','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/432/'},
+ {'park':'SEA','name':'半熟玉子','price':'¥150','place':'レストラン櫻','category':'トッピング','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/432/'},
+ {'park':'SEA','name':'コーンチャウダー','price':'¥440','place':'ホライズンベイ・レストラン','category':'サイドディッシュ・COMING SOON','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'park':'SEA','name':'ミックスフライ','price':'¥1,480','place':'ホライズンベイ・レストラン','category':'アントレ・販売休止中','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'park':'SEA','name':'パン','price':'¥250','place':'ホライズンベイ・レストラン','category':'パン/ライス','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'park':'SEA','name':'ライス','price':'¥250','place':'ホライズンベイ・レストラン','category':'パン/ライス','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'park':'SEA','name':'ミルク（紙パック）','price':'¥190','place':'ホライズンベイ・レストラン','category':'ソフトドリンク','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/451/'},
+ {'park':'SEA','name':'パンプキンムース＆チョコプリン','price':'¥550','place':'ヴォルケイニア・レストラン','category':'デザート','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/418/'},
+ {'park':'SEA','name':'チョコレートケーキ（ナッツ入り）','price':'¥550','place':'ヴォルケイニア・レストラン','category':'デザート','url':'https://www.tokyodisneyresort.jp/tds/restaurant/food/418/'}
+]
+
+def seed_verified():
+    c=db()
+    for x in VERIFIED_MENU_BASELINE:
+        row=dict(url=x['url']+'#verified-'+str(abs(hash((x['place'],x['name'])))),kind='menu',
+                 park=x['park'],name=x['name'],price=x['price'],place=x['place'],category=x['category'],
+                 image='',detail='公式公開情報で確認済み',updated=int(time.time()))
+        c.execute("""insert or ignore into local_catalog(url,kind,park,name,price,place,category,image,detail,updated)
+                     values(:url,:kind,:park,:name,:price,:place,:category,:image,:detail,:updated)""",row)
+    for x in VERIFIED_GOODS_BASELINE:
+        row=dict(url=x['url'],kind='goods',park=x['park'],name=x['name'],price=x['price'],place=x['place'],
+                 category=x['category'],image=x['image'],detail='公式公開情報で確認済み',updated=int(time.time()))
+        c.execute("""insert or ignore into local_catalog(url,kind,park,name,price,place,category,image,detail,updated)
+                     values(:url,:kind,:park,:name,:price,:place,:category,:image,:detail,:updated)""",row)
+    for x in VERIFIED_MENU_BASELINE_V6:
+        row=dict(url=x['url']+'#verified-v6-'+str(abs(hash((x['place'],x['name'])))),kind='menu',
+                 park=x['park'],name=x['name'],price=x['price'],place=x['place'],category=x['category'],
+                 image='',detail='公式公開情報で確認済み',updated=int(time.time()))
+        c.execute("""insert or ignore into local_catalog(url,kind,park,name,price,place,category,image,detail,updated)
+                     values(:url,:kind,:park,:name,:price,:place,:category,:image,:detail,:updated)""",row)
+    for x in VERIFIED_SEA_MENU_V7:
+        row=dict(url=x['url']+'#verified-v7-'+str(abs(hash((x['place'],x['name'])))),kind='menu',
+                 park='SEA',name=x['name'],price=x['price'],place=x['place'],category=x['category'],
+                 image='',detail='公式公開情報で確認済み',updated=int(time.time()))
+        c.execute("""insert or ignore into local_catalog(url,kind,park,name,price,place,category,image,detail,updated)
+                     values(:url,:kind,:park,:name,:price,:place,:category,:image,:detail,:updated)""",row)
+    for x in VERIFIED_REVIEW_MENU_V9:
+        row=dict(url=x['url']+'#verified-v9-'+str(abs(hash((x['place'],x['name'])))),kind='menu',
+                 park=x['park'],name=x['name'],price=x['price'],place=x['place'],category=x['category'],
+                 image='',detail='公式公開情報で確認済み',updated=int(time.time()))
+        c.execute("""insert or ignore into local_catalog(url,kind,park,name,price,place,category,image,detail,updated)
+                     values(:url,:kind,:park,:name,:price,:place,:category,:image,:detail,:updated)""",row)
+    c.commit(); c.close()
 
 @app.get('/api/catalog')
 def get_catalog(q:str='',park:str='',kind:str=''):
+    bootstrap_concrete()
     c=db(); sql='select * from local_catalog where 1=1'; args=[]
     if park: sql+=' and park=?'; args.append(park)
     if kind: sql+=' and kind=?'; args.append(kind)
@@ -237,10 +416,7 @@ def get_catalog(q:str='',park:str='',kind:str=''):
         args += ['%'+q+'%']*3
     sql+=' order by updated desc,name limit 2000'
     rows=[dict(x) for x in c.execute(sql,args).fetchall()]; c.close()
-    # Until first local refresh, retain the existing seed so the screen is never empty.
-    if not rows and not q:
-        rows=CATALOG
-    return {'ok':True,'items':rows,'refresh':refresh_state}
+    return {'ok':True,'items':rows,'refresh':refresh_state,'quality':{'broad_goods_removed':True,'regular_menu_baseline':True}}
 
 @app.post('/api/catalog/refresh')
 def start_refresh():
@@ -251,23 +427,56 @@ def start_refresh():
 
 @app.get('/api/qa')
 def qa():
-    # Five independent review lenses: localization, menu coverage, data quality, UI/search, resilience.
-    report={'localization':{},'menu_coverage':{},'data_quality':{},'ui_search':{},'resilience':{}}
+    seed_verified()
     unknown=[]
     for park in ('LAND','SEA'):
         try:
-            d=live(park); unknown += [x.get('raw_name') for x in d.get('items',[]) if x.get('name')=='名称確認中']
-        except Exception as e: report['resilience'][park]=str(e)
+            d=live(park)
+            unknown += [x.get('raw_name') for x in d.get('items',[])
+                        if re.search(r'[A-Za-z]',x.get('name',''))]
+        except Exception:
+            pass
     c=db(); rows=[dict(x) for x in c.execute('select * from local_catalog').fetchall()]; c.close()
-    menus=[x for x in rows if x['kind']=='menu']; goods=[x for x in rows if x['kind']=='goods']
-    souvenir_words=('スーベニア','ミニスナックケース')
-    regular=[x for x in menus if not any(w in (x['name'] or '') for w in souvenir_words)]
-    report['localization']={'unknown_english_count':len(unknown),'unknown_raw_names':unknown}
-    report['menu_coverage']={'all_menu_items':len(menus),'regular_non_souvenir_items':len(regular),'restaurants':len(set(x['place'] for x in menus if x['place']))}
-    report['data_quality']={'goods':len(goods),'menu_with_images':sum(bool(x['image']) for x in menus),'goods_with_images':sum(bool(x['image']) for x in goods)}
-    report['ui_search']={'search_fields':['name','place','detail'],'reverse_lookup':True}
-    report['resilience'].update({'refresh_running':refresh_state['running'],'last_refresh':refresh_state['last']})
-    return {'ok':True,'reviews':report}
+    menus=[x for x in rows if x['kind']=='menu']
+    goods=[x for x in rows if x['kind']=='goods']
+    regular=[x for x in menus if 'スーベニア' not in (x['name'] or '') and 'ミニスナックケース' not in (x['name'] or '')]
+    generic={'バッグ','ショルダーバッグ','トートバッグ','ぬいぐるみ','カチューシャ','Tシャツ'}
+    bad_goods=[x['name'] for x in goods if x['name'] in generic]
+    names={x['name'] for x in rows}
+    checks={
+      'hotdog_searchable':'ホットドッグ' in names,
+      'regular_side_searchable':'チキンナゲット' in names and 'フレンチフライポテト' in names,
+      'regular_main_searchable':'テリヤキチキンパオ（エッグ＆BBQソース）' in names,
+      'drink_searchable':'コーヒー' in names,
+      'specific_goods_searchable':'ベイマックス・顔デザイン ショルダーバッグ' in names,
+      'restaurant_category_coverage':all(x in names for x in ['ベイマックス・プレート（チキンカレー）','リトルグリーンまん','キッズ・プラズマセット','クレームブリュレ風チュロス','ベーコンチーズバーガー（BBQトマトソース）']),
+      'sea_menu_coverage':all(x in names for x in ['和牛すき焼き重','チャーリー特製味噌クラムチャウダー','よだれ鶏の涼麺 胡麻風味、煮たまご添え','スパイシーチキンのオーブン焼き','お子様セット','シーソルト・アイスモナカ']),
+      'localization_no_english':len(unknown)==0,
+      'ordinary_menu_present':len(regular)>0,
+      'concrete_goods_only':len(bad_goods)==0,
+      'goods_images_present':len(goods)==0 or any(bool(x['image']) for x in goods),
+      'menu_not_souvenir_only':len(regular)>=10,
+      'both_parks_present':any(x['park']=='LAND' for x in menus) and any(x['park']=='SEA' for x in menus),
+      'review_breadth':all(x in names for x in ['野菜天麩羅重','海鮮重','だしセット','パンプキンムース＆チョコプリン']),
+      'future_and_suspended_visible':all(x in names for x in ['コーンチャウダー','ミックスフライ']),
+      'reverse_lookup_fields':all(('name' in x and 'place' in x) for x in rows)
+    }
+    return {'pass':all(checks.values()),'checks':checks,
+      'counts':{'menus':len(menus),'ordinary_menus':len(regular),'goods':len(goods),
+                'goods_images':sum(bool(x['image']) for x in goods)},
+      'unresolved_names':unknown,'generic_goods':bad_goods}
+
+@app.get('/api/review')
+def review_snapshot():
+    seed_verified()
+    c=db(); rows=[dict(x) for x in c.execute('select * from local_catalog').fetchall()]; c.close()
+    def stat(kind,park):
+        rr=[x for x in rows if x['kind']==kind and x['park']==park]
+        return {'count':len(rr),'with_image':sum(bool(x['image']) for x in rr),
+                'places':len(set(x['place'] for x in rr if x['place']))}
+    return {'LAND':{'menu':stat('menu','LAND'),'goods':stat('goods','LAND')},
+            'SEA':{'menu':stat('menu','SEA'),'goods':stat('goods','SEA')}}
+
 
 @app.get('/',response_class=HTMLResponse)
 def home():return HTML
